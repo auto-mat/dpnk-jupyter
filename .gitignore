@@ -1,0 +1,6 @@
+salt_file
+*.json
+*.anon
+*.pdf
+*.html
+.ipynb_checkpoints/
