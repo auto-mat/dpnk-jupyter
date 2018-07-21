@@ -1,0 +1,62 @@
+#!/usr/bin/python3
+# License: GPLv3
+# Author: Timothy Hobbs (© auto*mat https://www.auto-mat.cz/)
+
+import json
+import sys
+import os
+import hashlib
+import uuid
+import subprocess
+
+if len(sys.argv) != 3:
+ sys.exit("""
+This utility is used to compair two json encoded sets of DPNK UserAttendances.
+
+Ex:
+
+$ ./build UserAttendance-2017.json UserAttendance-2018.json
+""")
+
+salt_file = "./salt_file"
+if not os.path.exists(salt_file):
+ with open(salt_file) as fd:
+  fd.write(str(uuid.uuid4()))
+
+salt=open(salt_file, 'rb').read()
+
+def anonymize_file(path):
+ uas = json.load(open(path))
+ for ua in uas:
+  personal_info = [
+   'company_admin_emails',
+   'userprofile__telephone',
+   'userprofile__user__email',
+   'userprofile__user__first_name',
+   'userprofile__user__last_name',
+   'userprofile__user__id',
+   'userprofile__user__username',
+   'id',
+  ]
+  for field in personal_info:
+   ua[field] = hashlib.sha224(str(ua[field]).encode("utf8")+salt).hexdigest()
+
+ anon_file = path+".anon"
+ json.dump(uas, open(anon_file, "w"))
+ return anon_file
+
+anon_prev = anonymize_file(sys.argv[1])
+anon_cur = anonymize_file(sys.argv[2])
+
+prev = input("Enter previous period name:")
+cur = input("Enter current period name:")
+config = {
+ "prev": prev,
+ "cur": cur,
+ "title": "Analyza " + prev + " → " + cur,
+ "prev_file": anon_prev,
+ "cur_file": anon_cur,
+}
+
+json.dump(config, open("config.json", "w"))
+subprocess.call(["jupyter-nbconvert", "--execute", "--to", "html", "Meziroční analyza DPNK.ipynb"])
